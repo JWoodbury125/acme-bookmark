@@ -1,10 +1,24 @@
 const { db, Bookmark, Category } = require('./db')
 const express = require ('express')
 const app = express()
+const methodOverride = require('method-override')
+
 
 app.use(express.urlencoded({ extended:false } ))
+app.use(methodOverride('_method'))
 
 app.get('/', (req, res) => res.redirect('/bookmarks'))
+
+app.delete(`/bookmarks/:bookmarkId`, async (req, res, next) => {
+    try{
+        const bookmark = await Bookmark.findByPk(req.params.bookmarkId)
+        await bookmark.destroy()
+        res.redirect(`/category/${bookmark.categoryId}`)
+    }
+    catch(ex){
+        next(ex)
+    }
+})
 
 app.post('/bookmarks/:categoryId', async (req, res, next) => {
     try{
@@ -28,7 +42,6 @@ app.get('/bookmarks', async (req, res, next) => {
                 <div> ${bookmark.name}  <a href='/category/${bookmark.categoryId}'>${bookmark.category.name}</a></div>
             `
         }).join('')
-        console.log(categories)
 
         res.send(`
             <html>
@@ -50,8 +63,7 @@ app.get('/bookmarks', async (req, res, next) => {
                             <button> Create Bookmark </>
                         </form>
                     </div>
-                    ${html}
-
+                      ${html}
                 </body>
             </html>
         `)
@@ -66,9 +78,12 @@ app.get('/category/:categoryId', async (req, res, next) => {
         const categories = await Category.findByPk(req.params.categoryId, {
             include: [ Bookmark ]
         })
-        const html = categories.bookmarks.map( category => {
+        const html = categories.bookmarks.map( bookmark => {
             return `
-               <div> ${category.name} </div>
+               <div> ${bookmark.name} </div>
+               <form method='POST' action='/bookmarks/${bookmark.id}?_method=delete'>
+                   <button>X</button>
+               </form>
             `
         }).join('')
         res.send(`
